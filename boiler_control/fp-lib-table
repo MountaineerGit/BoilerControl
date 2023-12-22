@@ -1,0 +1,10 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "fuse_schulter_0031_8201")(type "KiCad")(uri "D:/Projekte/boilercontrol/kicad_libs/fuse_schulter_0031_8201.pretty")(options "")(descr ""))
+  (lib (name "fuse_schullter_2_0031_8201")(type "KiCad")(uri "D:/Projekte/boilercontrol/kicad_libs/fuse_schullter_2_0031_8201.pretty")(options "")(descr ""))
+  (lib (name "power_230v_5v_LD03_23B05R2")(type "KiCad")(uri "D:/Projekte/boilercontrol/kicad_libs/power_230v_5v_LD03_23B05R2.pretty")(options "")(descr ""))
+  (lib (name "KiCADv6")(type "KiCad")(uri "D:/Projekte/boilercontrol/kicad_libs/MOV_B72210S0351K101/KiCADv6.pretty")(options "")(descr ""))
+  (lib (name "MOV_B72210S0351K101")(type "KiCad")(uri "D:/Projekte/boilercontrol/kicad_libs/MOV_B72210S0351K101.pretty")(options "")(descr ""))
+  (lib (name "VRES_B722-350V_TDK")(type "KiCad")(uri "D:/Projekte/boilercontrol/kicad_libs/MOV_B72210S0351K101/KiCADv6/VRES_B722-350V_TDK.pretty")(options "")(descr ""))
+  (lib (name "Espressif")(type "KiCad")(uri "D:/Projekte/boilercontrol/kicad_libs/esp32_kicad_libs/footprints/Espressif.pretty")(options "")(descr ""))
+)

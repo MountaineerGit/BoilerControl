@@ -1,0 +1,5 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "2023-11-25_08-51-25")(type "KiCad")(uri "D:/Projekte/boilercontrol/kicad_libs/fuse_schulter_0031_8201/KiCADv6/2023-11-25_08-51-25.kicad_sym")(options "")(descr ""))
+  (lib (name "LD03-23B05R2")(type "KiCad")(uri "D:/Projekte/boilercontrol/kicad_libs/power_230v_5v_LD03_23B05R2/LD03-23B05R2.kicad_sym")(options "")(descr ""))
+)

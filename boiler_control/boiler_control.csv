@@ -1,0 +1,33 @@
+Id,Designator,Footprint,Quantity,Designation,Supplier and ref
+6,"C6,C3",C_0201_0603Metric_Pad0.64x0.40mm_HandSolder,2,100nF,@home
+12,"C2,C5,C1,C4",C_0201_0603Metric_Pad0.64x0.40mm_HandSolder,4,100nF,@home
+26,C8,C_1210_3225Metric_Pad1.33x2.70mm_HandSolder,1,1u,https://www.digikey.at/en/products/detail/tdk-corporation/C3225X7R1H105K160AA/2733157
+18,C7,C_2220_5650Metric_Pad1.97x5.40mm_HandSolder,1,10nF (X2),https://www.digikey.at/en/products/detail/kemet/CAS21C103MARGC/11195325
+13,PS1,CONV_LD03-23B05R2,1,LD03-23B05R2,https://www.digikey.at/en/products/detail/mornsun-america-llc/LD03-23B05R2/13531047?s=N4IgTCBcDaIDIBEAMBmAtGFAhJBWAShALoC%2BQA
+31,C9,CP_Elec_8x6.9,1,150u,https://www.digikey.at/en/products/detail/nichicon/UUD1V151MNL1GS/590032
+2,D2,D_SMB_Handsoldering,1,D_Schottky,
+25,D3,D_SMB_Handsoldering,1,SMBJ7.0A,https://www.digikey.at/en/products/detail/littelfuse-inc/SMBJ7-0A/285960
+30,U4,DIP-6_W7.62mm_SMDSocket_SmallPads,1,MOC3162M,https://www.digikey.at/en/products/detail/onsemi/MOC3162SM/402033
+15,U2,flo_esp32s3,1,MOUDLE-SEEEDUINO-XIAO-ESP32C3,@home
+9,F1,Fuseholder_Clip-5x20mm_Schurter_CQM_Inline_P20.60x5.00mm_D1.00mm_Horizontal,1,31.8201,https://www.digikey.at/en/products/detail/schurter-inc/0031-8201/669925
+4,D4,LED_0603_1608Metric_Pad1.05x0.95mm_HandSolder,1,LED,@home
+23,D5,LED_0603_1608Metric_Pad1.05x0.95mm_HandSolder,1,power_led,@home
+5,"H1,H4,H3,H2",MountingHole_3.2mm_M3,4,MountingHole,-
+28,J1,PinHeader_1x01_P1.00mm_Vertical,1,Conn_01x01,-
+21,"JPTa1,JPTb1",PinHeader_1x02_P2.54mm_Vertical,2,Conn_01x02,@home
+11,"JGND1,J3V3,JOWI1,JOWI2,JGND2,J5V1",PinHeader_1x03_P2.54mm_Vertical,6,Conn_01x03,@home
+19,JDisplay1,PinHeader_1x04_P2.54mm_Vertical,1,Conn_01x04_Pin,@home
+8,"R2,R1,R3,R7",R_0201_0603Metric_Pad0.64x0.40mm_HandSolder,4,1k,@home
+10,"R6,R4,R5",R_0201_0603Metric_Pad0.64x0.40mm_HandSolder,5,R,@home
+16,"R21,R22",R_0603_1608Metric_Pad0.98x0.95mm_HandSolder,2,R,https://www.digikey.at/en/products/detail/stackpole-electronics-inc/RMCF1210JT270R/1757184
+20,R14,R_1206_3216Metric_Pad1.30x1.75mm_HandSolder,1,4k7,@home
+22,R10,R_1206_3216Metric_Pad1.30x1.75mm_HandSolder,1,Rift,https://www.digikey.at/en/products/detail/stackpole-electronics-inc/RMCF1206JT300R/1753813
+27,RGK2,R_1206_3216Metric_Pad1.30x1.75mm_HandSolder,1,330,https://www.digikey.at/en/products/detail/vishay-dale/CRCW1206330RFKEAHP/2227698
+29,R11,R_1206_3216Metric_Pad1.30x1.75mm_HandSolder,1,360,https://www.digikey.at/en/products/detail/vishay-dale/CRCW1206360RFKEAHP/2227703
+3,R12,R_2512_6332Metric_Pad1.40x3.35mm_HandSolder,1,RES SMD 12 OHM 5% 3W 2512,https://www.digikey.at/en/products/detail/te-connectivity-passive-product/352212RJT/5244987
+14,RGK1,R_2512_6332Metric_Pad1.40x3.35mm_HandSolder,1,39 1/2W,https://www.digikey.at/en/products/detail/stackpole-electronics-inc/RMCF2512FT39R0/1716601
+1,"J_Motor_out1,J_230V_in1,J_230V_PE1",TerminalBlock_bornier-2_P5.08mm,3,Screw_Terminal_01x02,@home
+17,D1,TO-252-2,1,ACST210,https://www.digikey.at/en/products/detail/stmicroelectronics/ACST210-8BTR/2346748
+7,"UPTB1,UPTA1",TQFN-20-1EP_5x5mm_P0.65mm_EP3.25x3.25mm,2,MAX31865xTP,https://www.digikey.at/en/products/detail/analog-devices-inc-maxim-integrated/MAX31865ATP/3681476
+24,RV1,VRES_B722-350V_TDK,1,S10K350,https://www.digikey.at/en/products/detail/epcos-tdk-electronics/B72210P2351K101/7669851
+10,"Rref2,Rref1",R_0201_0603Metric_Pad0.64x0.40mm_HandSolder,5,4.3k 0.1%,https://www.digikey.at/en/products/detail/panasonic-electronic-components/ERA-3AEB2432V/2026871
