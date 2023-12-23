@@ -7,4 +7,5 @@
   (lib (name "MOV_B72210S0351K101")(type "KiCad")(uri "D:/Projekte/boilercontrol/kicad_libs/MOV_B72210S0351K101.pretty")(options "")(descr ""))
   (lib (name "VRES_B722-350V_TDK")(type "KiCad")(uri "D:/Projekte/boilercontrol/kicad_libs/MOV_B72210S0351K101/KiCADv6/VRES_B722-350V_TDK.pretty")(options "")(descr ""))
   (lib (name "Espressif")(type "KiCad")(uri "D:/Projekte/boilercontrol/kicad_libs/esp32_kicad_libs/footprints/Espressif.pretty")(options "")(descr ""))
+  (lib (name "MAX31865AAP_T")(type "KiCad")(uri "D:/Projekte/boilercontrol/kicad_libs/MAX31865AAP_T.pretty")(options "")(descr ""))
 )

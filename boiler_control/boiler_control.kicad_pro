@@ -34,9 +34,9 @@
         "other_text_thickness": 0.15,
         "other_text_upright": false,
         "pads": {
-          "drill": 0.0,
-          "height": 0.4,
-          "width": 0.635
+          "drill": 0.762,
+          "height": 1.143,
+          "width": 1.143
         },
         "silk_line_width": 0.15,
         "silk_text_italic": false,
@@ -496,6 +496,10 @@
     [
       "0885bac3-39bd-481d-9380-ae1b0979da03",
       "power_5V"
+    ],
+    [
+      "35adf3db-ec68-4b8a-ab38-0825f4c8655d",
+      "bottom_max"
     ]
   ],
   "text_variables": {}
