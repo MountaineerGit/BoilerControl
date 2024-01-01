@@ -45,6 +45,10 @@ class BoilerControlComponent : public sensor::Sensor, public PollingComponent {
    void set_temperature_sensor_reflux(sensor::Sensor *temperature_sensor) 
  { temperature_sensor_reflux_ = temperature_sensor; }
 
+
+   void set_pump_binary_sensor(BoilerPump *pump) 
+ { pump_ = pump; }
+
  protected:
   InternalGPIOPin *pin_;
 
@@ -53,7 +57,9 @@ class BoilerControlComponent : public sensor::Sensor, public PollingComponent {
   sensor::Sensor *temperature_sensor_influx_{nullptr};
   sensor::Sensor *temperature_sensor_reflux_{nullptr};
 
-  BoilerPump pump_;
+  //BoilerPump *pump_{nullptr};
+  binary_sensor::BinarySensor *pump_{nullptr};
+
   BoilerControlComponentStore store_{};
   uint32_t last_update_{0};
 };

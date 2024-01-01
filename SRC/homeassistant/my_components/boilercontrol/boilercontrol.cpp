@@ -40,7 +40,8 @@ void BoilerControlComponent::update()
   if (this->temperature_sensor_reflux_ != nullptr)
     this->temperature_sensor_reflux_->publish_state(temperature - 2.25f);
 
-  pump_.publish_state(pump_.state);
+  if(pump_)
+    pump_->publish_state(true);
 
   this->status_clear_warning();
 }

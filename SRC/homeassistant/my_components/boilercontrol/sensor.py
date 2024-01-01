@@ -79,9 +79,7 @@ async def to_code(config):
 
     if "binary_sensor" in config:
         var2 = await binary_sensor.new_binary_sensor(config["binary_sensor"])
-
-    #cg.add(var2)
-    #await cg.register_component(var2, config)
+        cg.add(var.set_pump_binary_sensor(var2))
 
     if CONF_TEMPERATURE_BOILER in config:
         sens = await sensor.new_sensor(config[CONF_TEMPERATURE_BOILER])
