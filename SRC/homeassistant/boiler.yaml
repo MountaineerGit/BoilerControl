@@ -4,7 +4,6 @@ esphome:
   friendly_name: Boilercontrol2
   build_path: /homeassistant/esphome/tmp
   platformio_options:
-# Attention: only with this, ESP was working (!)
     board_build.flash_mode: dio
 #  includes:
 #    - custom_components/boilercontrol/boilercontrol.h
@@ -39,8 +38,19 @@ external_components:
 
 sensor:
   - platform: boilercontrol
-    temperature:
-      name: "Boiler Temperature"
+    temperature_boiler:
+      name: "Boiler"
+    temperature_solar:
+      name: "Solar"
+    temperature_influx:
+      name: "Zulauf"
+    temperature_reflux:
+      name: "Ruecklauf"
+    binary_sensor:
+      name: "Pumpe Status"
+
+binary_sensor:
+
 
 # Enable Home Assistant API
 api:

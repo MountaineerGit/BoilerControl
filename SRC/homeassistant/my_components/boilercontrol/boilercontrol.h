@@ -3,9 +3,9 @@
 #include "esphome/core/component.h"
 #include "esphome/core/hal.h"
 #include "esphome/components/sensor/sensor.h"
+#include "esphome/components/binary_sensor/binary_sensor.h"
 
 namespace esphome {
- // namespace component {
 namespace boilercontrol {
 
 /// Store data in a class that doesn't use multiple-inheritance (vtables in flash)
@@ -18,6 +18,13 @@ struct BoilerControlComponentStore {
   static void gpio_intr(BoilerControlComponentStore *arg);
 };
 
+class BoilerPump : public binary_sensor::BinarySensor {
+ public:
+
+  void set_state_pump_on() { this->state = true; }
+  void set_state_pump_off() { this->state = false; }
+};
+
 class BoilerControlComponent : public sensor::Sensor, public PollingComponent {
  public:
   void set_pin(InternalGPIOPin *pin) { pin_ = pin; }
@@ -26,18 +33,34 @@ class BoilerControlComponent : public sensor::Sensor, public PollingComponent {
   float get_setup_priority() const override;
   void dump_config() override;
   void update() override;
- void set_temperature_sensor(sensor::Sensor *temperature_sensor) 
- { temperature_sensor_ = temperature_sensor; }
+ void set_temperature_sensor_boiler(sensor::Sensor *temperature_sensor) 
+ { temperature_sensor_boiler_ = temperature_sensor; }
  
+  void set_temperature_sensor_solar(sensor::Sensor *temperature_sensor) 
+ { temperature_sensor_solar_ = temperature_sensor; }
+
+   void set_temperature_sensor_influx(sensor::Sensor *temperature_sensor) 
+ { temperature_sensor_influx_ = temperature_sensor; }
+
+   void set_temperature_sensor_reflux(sensor::Sensor *temperature_sensor) 
+ { temperature_sensor_reflux_ = temperature_sensor; }
+
  protected:
   InternalGPIOPin *pin_;
 
-  sensor::Sensor *temperature_sensor_{nullptr};
+  sensor::Sensor *temperature_sensor_boiler_{nullptr};
+  sensor::Sensor *temperature_sensor_solar_{nullptr};
+  sensor::Sensor *temperature_sensor_influx_{nullptr};
+  sensor::Sensor *temperature_sensor_reflux_{nullptr};
 
+  BoilerPump pump_;
   BoilerControlComponentStore store_{};
   uint32_t last_update_{0};
 };
 
+
+
 }  // namespace boilercontrol
-//  }
+
+
 }  // namespace esphome

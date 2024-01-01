@@ -25,10 +25,24 @@ void BoilerControlComponent::dump_config() {
 
 void BoilerControlComponent::update() 
 {
-  float value = 23.5f;
-  ESP_LOGD(TAG, "'%s' Temperature=%.1f%%", this->get_name().c_str(), value);
-  this->publish_state(value);
+  float temperature = 23.52f;
+  ESP_LOGD(TAG, "'%s' Temperature=%.1f%%", this->get_name().c_str(), temperature);
 
+  if (this->temperature_sensor_boiler_ != nullptr)
+    this->temperature_sensor_boiler_->publish_state(temperature);
+
+  if (this->temperature_sensor_solar_ != nullptr)
+    this->temperature_sensor_solar_->publish_state(temperature + 20.31f);
+
+  if (this->temperature_sensor_influx_ != nullptr)
+    this->temperature_sensor_influx_->publish_state(temperature + 10.33f);
+
+  if (this->temperature_sensor_reflux_ != nullptr)
+    this->temperature_sensor_reflux_->publish_state(temperature - 2.25f);
+
+  pump_.publish_state(pump_.state);
+
+  this->status_clear_warning();
 }
 
 float BoilerControlComponent::get_setup_priority() const 
