@@ -1,0 +1,3 @@
+[submodule "SRC/homeassistant/my_components/HD44780-ESP-IDF-CPP"]
+	path = SRC/homeassistant/my_components/HD44780-ESP-IDF-CPP
+	url = https://github.com/LucasCanete/HD44780-ESP-IDF-CPP.git
