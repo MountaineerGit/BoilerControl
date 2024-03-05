@@ -4,7 +4,7 @@
 #include <sstream>
 
 #include "Max31865.h"
-#include <components/HD44780.h>
+#include "HD44780.h"
 #include "version.h"
 
 //-----------------------------------------------------------------------------
@@ -31,7 +31,7 @@ const max31865_config_t tempConfig =
   .vbias = true,
   .autoConversion = true,
   .nWires = Max31865NWires::Two,
-  .faultDetection = Max31865FaultDetection::AutoDelay,
+  //.faultDetection = Max31865FaultDetection::AutoDelay,
   .filter = Max31865Filter::Hz50
 };
 
@@ -75,20 +75,29 @@ void app_main()
     8 /*sck*/,
     4 /*cs1 GPIO4, D2*/);
 
+  //    vTaskDelay(pdMS_TO_TICKS(500));
+
+ init_lcd();
+      vTaskDelay(pdMS_TO_TICKS(500));
+
+
   ESP_ERROR_CHECK(tempSensorBoiler.begin(tempConfig));
-  //ESP_ERROR_CHECK(tempSensorBoiler.setRTDThresholds(0x2000, 0x2500));
+  vTaskDelay(pdMS_TO_TICKS(100));
   ESP_ERROR_CHECK(tempSensorSolar.begin(tempConfig));
+  vTaskDelay(pdMS_TO_TICKS(100));
+
+  //ESP_ERROR_CHECK(tempSensorBoiler.setRTDThresholds(0x2000, 0x2500));
  // ESP_ERROR_CHECK(tempSensorSolar.setRTDThresholds(0x2000, 0x2500));
 
   ESP_LOGD("main", "Init LCD");
-  init_lcd();
+
   
   ESP_LOGD("main", "Main loop");
   while (true)
   {
     if(tempSensorSolar.getRTD(&rtd, &fault) == ESP_OK)
     {
-      ESP_LOGD("rtd", "%.2d ", rtd);
+      ESP_LOGI("rtdS", "%.2d ", rtd);
       temperature = Max31865::RTDtoTemperature(rtd, rtdConfig);
       ESP_LOGI("TemperatureS", "%.2f C", temperature);
       print_temperature(LCD_POSTION::POS1_SOLAR, static_cast<int>(temperature));
@@ -97,16 +106,19 @@ void app_main()
       print_error(LCD_POSTION::POS1_SOLAR, APP_ERROR::TEMP_SENSOR_FAIL);
     }
 
+#if 1
     if(tempSensorBoiler.getRTD(&rtd, &fault) == ESP_OK)
     {
-      ESP_LOGD("rtd", "%.2d ", rtd);
+      ESP_LOGI("rtdB", "%.2d ", rtd);
       temperature = Max31865::RTDtoTemperature(rtd, rtdConfig);
       ESP_LOGI("TemperatureB", "%.2f C", temperature);
       print_temperature(LCD_POSTION::POS2_BOILER, static_cast<int>(temperature));
       vTaskDelay(pdMS_TO_TICKS(500));
+
     } else  {
       print_error(LCD_POSTION::POS1_SOLAR, APP_ERROR::TEMP_SENSOR_FAIL);
     }
+#endif
   }
 }
 
@@ -162,6 +174,7 @@ static void print_error(const enum LCD_POSTION pos, const enum APP_ERROR err)
 
 static void print_temperature(const enum LCD_POSTION pos, const int temperature)
 {
+ // return ;
   set_lcd_cursor(pos);
   lcd.print("   "); /* clear old result*/
   set_lcd_cursor(pos);
