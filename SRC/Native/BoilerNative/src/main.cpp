@@ -3,9 +3,15 @@
 #include <freertos/task.h>
 #include <sstream>
 
+ 
 #include "Max31865.h"
 #include "HD44780.h"
 #include "version.h"
+
+#include "OneWireNg_CurrentPlatform.h"
+#include "drivers/DSTherm.h"
+#include "utils/Placeholder.h"
+#include "platform/Platform_Delay.h"
 
 //-----------------------------------------------------------------------------
 // constants and defines
@@ -29,9 +35,9 @@ enum class LCD_POSTION : uint8_t
 const max31865_config_t tempConfig =
 {
   .vbias = true,
-  .autoConversion = true,
+  .autoConversion = false,
   .nWires = Max31865NWires::Two,
-  //.faultDetection = Max31865FaultDetection::AutoDelay,
+  .faultDetection = Max31865FaultDetection::AutoDelay,
   .filter = Max31865Filter::Hz50
 };
 
@@ -47,13 +53,20 @@ enum class APP_ERROR : uint8_t
 };
 
 //-----------------------------------------------------------------------------
+# define PARASITE_POWER_ARG false
 // Globals
 LCD_I2C lcd;
+
+//static Placeholder<OneWireNg_CurrentPlatform> ow;
+OneWireNg_CurrentPlatform ow = OneWireNg_CurrentPlatform(3 /*GPIO3,A1,D1*/, false);
+
+DSTherm drv(ow);
 
 //-----------------------------------------------------------------------------
 static void init_lcd();
 static void print_temperature(const enum LCD_POSTION pos, const int temperature);
 static void print_error(const enum LCD_POSTION pos, const enum APP_ERROR err);
+static void printScratchpad(const DSTherm::Scratchpad& scrpd);
 
 
 extern "C"
@@ -119,6 +132,22 @@ void app_main()
       print_error(LCD_POSTION::POS1_SOLAR, APP_ERROR::TEMP_SENSOR_FAIL);
     }
 #endif
+
+    /* convert temperature on all sensors connected... */
+    drv.convertTempAll(DSTherm::MAX_CONV_TIME, PARASITE_POWER_ARG);
+
+        /* read sensors one-by-one */
+    Placeholder<DSTherm::Scratchpad> scrpd;
+
+    for (const auto& id: ow) {
+    
+            if (drv.readScratchpad(id, scrpd) == OneWireNg::EC_SUCCESS)
+                printScratchpad(scrpd);
+            else
+                printf("  Read scratchpad error.\n");
+      
+    }
+
   }
 }
 
@@ -184,4 +213,28 @@ static void print_temperature(const enum LCD_POSTION pos, const int temperature)
     lcd.print("ET2");
   }
   vTaskDelay(pdMS_TO_TICKS(500));
+}
+
+
+static void printScratchpad(const DSTherm::Scratchpad& scrpd)
+{
+    const uint8_t *scrpd_raw = scrpd.getRaw();
+
+    ESP_LOGD("","  Scratchpad:");
+    for (size_t i = 0; i < DSTherm::Scratchpad::LENGTH; i++)
+        printf("%c%02x", (!i ? ' ' : ':'), scrpd_raw[i]);
+
+
+      ESP_LOGI("Th", "%d", scrpd.getTh());
+      ESP_LOGI("Tl", "%d", scrpd.getTl());
+      ESP_LOGI("Res", "%d", 9 + (int)(scrpd.getResolution() - DSTherm::RES_9_BIT));
+
+
+    long temp = scrpd.getTemp2();
+    ESP_LOGI("Temp:", "");
+    if (temp < 0) {
+        temp = -temp;
+        ESP_LOGD("-","");
+    }
+    ESP_LOGI("jo", "%d.%04d C\n", (int)temp / 16, (10000 * ((int)temp % 16)) / 16);
 }
