@@ -3,10 +3,12 @@
 #include <freertos/task.h>
 #include <sstream>
 
+#include "driver/gpio.h"
  
 #include "Max31865.h"
 #include "HD44780.h"
 #include "version.h"
+#include <math.h>
 
 #include "OneWireNg_CurrentPlatform.h"
 #include "drivers/DSTherm.h"
@@ -41,10 +43,18 @@ const max31865_config_t tempConfig =
   .filter = Max31865Filter::Hz50
 };
 
-const max31865_rtd_config_t rtdConfig =
+const max31865_rtd_config_t rtdConfigBoiler =
 {
   .ref = 4313.0f, // TODO: adjust to proper settings
-  .nominal = 1000.0f
+  .nominal = 1000.0f,
+  .sensor_type = SensorType::PT1000
+};
+
+const max31865_rtd_config_t rtdConfigSolar =
+{
+  .ref = 4313.0f, // TODO: adjust to proper settings
+  .nominal = 1630.0f,
+  .sensor_type = SensorType::KTY81_210
 };
 
 enum class APP_ERROR : uint8_t
@@ -62,6 +72,19 @@ OneWireNg_CurrentPlatform ow = OneWireNg_CurrentPlatform(3 /*GPIO3,A1,D1*/, fals
 
 DSTherm drv(ow);
 
+// LED GPIO2/A0/D0
+#define LED_GPIO_NUM GPIO_NUM_2
+#define LED_ON 1
+#define LED_OFF 0
+const gpio_config_t LED_GPIO_CFG =
+{
+  .pin_bit_mask = 1ULL << LED_GPIO_NUM,
+  .mode = GPIO_MODE_OUTPUT,
+  .pull_up_en = GPIO_PULLUP_DISABLE,
+  .pull_down_en = GPIO_PULLDOWN_ENABLE,
+  .intr_type = GPIO_INTR_DISABLE
+};
+
 //-----------------------------------------------------------------------------
 static void init_lcd();
 static void print_temperature(const enum LCD_POSTION pos, const int temperature);
@@ -74,7 +97,8 @@ void app_main()
 {
   uint16_t rtd;
   Max31865Error fault = Max31865Error::NoError;
-  float temperature;
+  float temperatureSolar = 0.0f;
+  float temperatureBoiler = 0.0f;
 
   Max31865 tempSensorBoiler = Max31865(
     9 /*miso*/,
@@ -90,9 +114,12 @@ void app_main()
 
   //    vTaskDelay(pdMS_TO_TICKS(500));
 
- init_lcd();
-      vTaskDelay(pdMS_TO_TICKS(500));
+  ESP_LOGD("main", "Init LCD");
+  init_lcd();
+  vTaskDelay(pdMS_TO_TICKS(500));
 
+  gpio_config(&LED_GPIO_CFG);
+  gpio_set_level(LED_GPIO_NUM, LED_OFF);
 
   ESP_ERROR_CHECK(tempSensorBoiler.begin(tempConfig));
   vTaskDelay(pdMS_TO_TICKS(100));
@@ -102,50 +129,52 @@ void app_main()
   //ESP_ERROR_CHECK(tempSensorBoiler.setRTDThresholds(0x2000, 0x2500));
  // ESP_ERROR_CHECK(tempSensorSolar.setRTDThresholds(0x2000, 0x2500));
 
-  ESP_LOGD("main", "Init LCD");
-
-  
   ESP_LOGD("main", "Main loop");
   while (true)
   {
     if(tempSensorSolar.getRTD(&rtd, &fault) == ESP_OK)
     {
       ESP_LOGI("rtdS", "%.2d ", rtd);
-      temperature = Max31865::RTDtoTemperature(rtd, rtdConfig);
-      ESP_LOGI("TemperatureS", "%.2f C", temperature);
-      print_temperature(LCD_POSTION::POS1_SOLAR, static_cast<int>(temperature));
+      temperatureSolar = Max31865::RTDtoTemperature(rtd, rtdConfigSolar);
+
+      ESP_LOGI("TemperatureS", "%.2f C", temperatureSolar);
+      print_temperature(LCD_POSTION::POS1_SOLAR, static_cast<int>(temperatureSolar));
       vTaskDelay(pdMS_TO_TICKS(500));
     } else  {
       print_error(LCD_POSTION::POS1_SOLAR, APP_ERROR::TEMP_SENSOR_FAIL);
     }
 
-#if 1
+
     if(tempSensorBoiler.getRTD(&rtd, &fault) == ESP_OK)
     {
       ESP_LOGI("rtdB", "%.2d ", rtd);
-      temperature = Max31865::RTDtoTemperature(rtd, rtdConfig);
-      ESP_LOGI("TemperatureB", "%.2f C", temperature);
-      print_temperature(LCD_POSTION::POS2_BOILER, static_cast<int>(temperature));
+      temperatureBoiler = Max31865::RTDtoTemperature(rtd, rtdConfigBoiler);
+      ESP_LOGI("TemperatureB", "%.2f C", temperatureBoiler);
+      print_temperature(LCD_POSTION::POS2_BOILER, static_cast<int>(temperatureBoiler));
       vTaskDelay(pdMS_TO_TICKS(500));
 
     } else  {
       print_error(LCD_POSTION::POS1_SOLAR, APP_ERROR::TEMP_SENSOR_FAIL);
     }
-#endif
+
+    if(temperatureSolar - temperatureBoiler > 7.0f) {
+      gpio_set_level(LED_GPIO_NUM, LED_ON);
+    } else {
+      gpio_set_level(LED_GPIO_NUM, LED_OFF);
+    }
 
     /* convert temperature on all sensors connected... */
     drv.convertTempAll(DSTherm::MAX_CONV_TIME, PARASITE_POWER_ARG);
 
-        /* read sensors one-by-one */
+    /* read sensors one-by-one */
     Placeholder<DSTherm::Scratchpad> scrpd;
 
     for (const auto& id: ow) {
     
-            if (drv.readScratchpad(id, scrpd) == OneWireNg::EC_SUCCESS)
-                printScratchpad(scrpd);
-            else
-                printf("  Read scratchpad error.\n");
-      
+          if (drv.readScratchpad(id, scrpd) == OneWireNg::EC_SUCCESS)
+              printScratchpad(scrpd);
+          else
+              printf("  Read scratchpad error.\n");
     }
 
   }
