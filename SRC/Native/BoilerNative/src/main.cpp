@@ -218,6 +218,7 @@ static void print_temperature(const enum LCD_POSTION pos, const int temperature)
 
 static void printScratchpad(const DSTherm::Scratchpad& scrpd)
 {
+    static bool zu = false;
     const uint8_t *scrpd_raw = scrpd.getRaw();
 
     ESP_LOGD("","  Scratchpad:");
@@ -228,7 +229,7 @@ static void printScratchpad(const DSTherm::Scratchpad& scrpd)
       ESP_LOGI("Th", "%d", scrpd.getTh());
       ESP_LOGI("Tl", "%d", scrpd.getTl());
       ESP_LOGI("Res", "%d", 9 + (int)(scrpd.getResolution() - DSTherm::RES_9_BIT));
-
+      ESP_LOGI("Addr:", "%d", scrpd.getAddr());
 
     long temp = scrpd.getTemp2();
     ESP_LOGI("Temp:", "");
@@ -237,4 +238,13 @@ static void printScratchpad(const DSTherm::Scratchpad& scrpd)
         ESP_LOGD("-","");
     }
     ESP_LOGI("jo", "%d.%04d C\n", (int)temp / 16, (10000 * ((int)temp % 16)) / 16);
+
+    if(zu)
+    {
+      print_temperature(LCD_POSTION::POS3_INFLOW, (int)temp / 16);
+      zu = false;
+    } else {
+      print_temperature(LCD_POSTION::POS4_REFLOW, (int)temp / 16);
+      zu = true;
+    }
 }
