@@ -45,14 +45,14 @@ const max31865_config_t tempConfig =
 
 const max31865_rtd_config_t rtdConfigBoiler =
 {
-  .ref = 4313.0f, // TODO: adjust to proper settings
+  .ref = 4304.0f, // TODO: adjust to proper settings
   .nominal = 1000.0f,
   .sensor_type = SensorType::PT1000
 };
 
 const max31865_rtd_config_t rtdConfigSolar =
 {
-  .ref = 4313.0f, // TODO: adjust to proper settings
+  .ref = 4304.0f, // TODO: adjust to proper settings
   .nominal = 1630.0f,
   .sensor_type = SensorType::KTY81_210
 };
