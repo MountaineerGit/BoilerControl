@@ -3,6 +3,8 @@
 #include <freertos/task.h>
 #include <sstream>
 
+#include <esp_task_wdt.h>
+
 #include "driver/gpio.h"
  
 #include "SolarBoilerController.h"
@@ -62,7 +64,10 @@ const max31865_rtd_config_t rtdConfigSolar =
 enum class APP_ERROR : uint8_t
 {
   TEMP_SENSOR_FAIL = 0,
+  WATCHDOG_TRIGGERED
 };
+
+static constexpr uint32_t WATCHDOG_TIMEOUT_MS = 10*1000;
 
 // how fast to re-measure temperatures
 // must be greater 0
@@ -119,9 +124,12 @@ const gpio_config_t PUMP_CTRL_GPIO_CFG =
 //-----------------------------------------------------------------------------
 static void init_lcd();
 static void lcd_print_temperature(const enum LCD_POSTION pos, const int temperature);
-static void lcd_print_error(const enum LCD_POSTION pos, const enum APP_ERROR err);
+static void lcd_print_temp_sensor_error(const enum LCD_POSTION pos, const enum APP_ERROR err);
+static void lcd_print_app_error(const enum APP_ERROR err);
 static void lcd_pump_indicator(SolarBoilerController::PUMP_STATE state);
 static void printScratchpad(const DSTherm::Scratchpad& scrpd);
+
+static esp_err_t watchdog_init(uint32_t timeout_ms);
 
 static SolarBoilerController::PUMP_STATE pumpAction(SolarBoilerController::PUMP_STATE state);
 static float getMax31865Temperature(Max31865 &max, const enum LCD_POSTION pos);
@@ -147,6 +155,8 @@ void app_main()
     4 /*cs1 GPIO4, D2*/);
 
   //    vTaskDelay(pdMS_TO_TICKS(500));
+
+  watchdog_init(WATCHDOG_TIMEOUT_MS);
 
   ESP_LOGD("main", "Init LCD");
   init_lcd();
@@ -264,10 +274,19 @@ static void set_lcd_cursor(const enum LCD_POSTION pos)
   lcd.setCursor(col, row);
 }
 
-static void lcd_print_error(const enum LCD_POSTION pos, const enum APP_ERROR err)
+static void lcd_print_temp_sensor_error(const enum LCD_POSTION pos, const enum APP_ERROR err)
 {
   set_lcd_cursor(pos);
   lcd.print("ET1");
+}
+
+static void lcd_print_app_error(const enum APP_ERROR err)
+{
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    if(err == APP_ERROR::WATCHDOG_TRIGGERED) {
+      lcd.print("Error: ETW");
+    }
 }
 
 static void lcd_pump_indicator(SolarBoilerController::PUMP_STATE state)
@@ -377,8 +396,31 @@ static float getMax31865Temperature(Max31865 &max, const enum LCD_POSTION pos)
       lcd_print_temperature(pos, static_cast<int>(temperature));
       vTaskDelay(pdMS_TO_TICKS(100));
     } else  {
-      lcd_print_error(pos, APP_ERROR::TEMP_SENSOR_FAIL);
+      lcd_print_temp_sensor_error(pos, APP_ERROR::TEMP_SENSOR_FAIL);
     }
 
     return temperature;
+}
+
+
+//-----------------------------------------------------------------------------
+static esp_err_t watchdog_init(uint32_t timeout_ms)
+{
+  const  esp_task_wdt_config_t wdt_cfg = 
+  {
+    .timeout_ms = timeout_ms,
+    .idle_core_mask = 1, // TODO: what is this?
+    .trigger_panic = true
+  };
+
+  esp_err_t ret_wdt_init_state = esp_task_wdt_init(&wdt_cfg);
+  esp_task_wdt_add(NULL);
+  return ret_wdt_init_state;
+}
+
+// Watchdog timeout ISR
+void esp_task_wdt_isr_user_handler(void)
+{
+  pumpAction(SolarBoilerController::PUMP_STATE::EMERGENCY_TURN_OFF);
+  lcd_print_app_error(APP_ERROR::WATCHDOG_TRIGGERED);
 }
