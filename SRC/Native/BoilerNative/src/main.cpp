@@ -127,6 +127,7 @@ void app_main()
 {
   float temperatureSolar = 0.0f;
   float temperatureBoiler = 0.0f;
+  SolarBoilerController::PUMP_STATE pump_state = SolarBoilerController::PUMP_STATE::PUMP_OFF;
 
   Max31865 tempSensorBoiler = Max31865(
     9 /*miso*/,
@@ -149,8 +150,9 @@ void app_main()
   gpio_config(&LED_GPIO_CFG);
   gpio_set_level(LED_GPIO_NUM, LED_OFF);
 
-  gpio_config(&PUMP_CTRL_GPIO_CFG);
-  gpio_set_level(TRIAC_PUMP_GPIO_NUM, SolarBoilerController::PUMP_STATE::PUMP_OFF);
+  // TODO: is this the trouble-maker ???
+  //gpio_config(&PUMP_CTRL_GPIO_CFG);
+  //gpio_set_level(TRIAC_PUMP_GPIO_NUM, SolarBoilerController::PUMP_STATE::PUMP_OFF);
 
   ESP_ERROR_CHECK(tempSensorBoiler.begin(tempConfig));
   vTaskDelay(pdMS_TO_TICKS(100));
@@ -163,23 +165,29 @@ void app_main()
   ESP_LOGD("main", "Main loop");
   while (true)
   {
+    lcd_pump_indicator(pump_state);  // we call this multiple times for nice display-animation
 
     temperatureSolar = getMax31865Temperature(tempSensorSolar, LCD_POSTION::POS1_SOLAR);
     vTaskDelay(pdMS_TO_TICKS(500));
 
+    lcd_pump_indicator(pump_state);  // we call this multiple times for nice display-animation
+  
     temperatureBoiler = getMax31865Temperature(tempSensorBoiler, LCD_POSTION::POS2_BOILER);
     vTaskDelay(pdMS_TO_TICKS(500));
 
-    ESP_LOGI("print:", "%d", __LINE__);
     /* feed readings to controller and check for pump action */
     pump_controller.setSolarTemperature(temperatureSolar);
     pump_controller.setBoilerTemperature(temperatureBoiler);
-    SolarBoilerController::PUMP_STATE pump_state = pumpAction(pump_controller.getPumpAction());
+    pump_state = pumpAction(pump_controller.getPumpAction());
 
-    ESP_LOGI("print:", "%d", __LINE__);
-   // lcd_pump_indicator(pump_state);
+    lcd_pump_indicator(pump_state);  // we call this multiple times for nice display-animation
 
     if(pump_state == SolarBoilerController::PUMP_STATE::PUMP_ON) {
+       ESP_LOGI("","** pump ON");
+    }
+    else
+    {
+      ESP_LOGI("", "** pump OFF");
     }
 
 
@@ -217,8 +225,7 @@ static void init_lcd()
   lcd.setCursor(8,0); lcd.print("| Zu:");
   lcd.setCursor(0,1); lcd.print("Boi:");
   lcd.setCursor(8,1); lcd.print("| Ab:");
-  vTaskDelay(pdMS_TO_TICKS(2000));
-        lcd.setCursor(8,1); lcd.print("ggg:");
+
 
 #ifdef LCD_DEBUG_PRINT
   print_temperature(LCD_POSTION::POS1_SOLAR,120);
@@ -259,15 +266,15 @@ static void lcd_pump_indicator(SolarBoilerController::PUMP_STATE state)
   static bool turnaround = false;
 
   if(state != SolarBoilerController::PUMP_STATE::PUMP_ON) {
-    lcd.setCursor(0, LCD_SEPARATOR_POSITION);
+    lcd.setCursor(LCD_SEPARATOR_POSITION, 0);
     lcd.print("|");
-    lcd.setCursor(1, LCD_SEPARATOR_POSITION);
+    lcd.setCursor(LCD_SEPARATOR_POSITION, 1);
     lcd.print("|");
   } else {
-    lcd.setCursor(0, LCD_SEPARATOR_POSITION);
-    lcd.print(turnaround ? "/" : "\\");
-    lcd.setCursor(1, LCD_SEPARATOR_POSITION);
-    lcd.print(turnaround ? "/" : "\\");
+    lcd.setCursor(LCD_SEPARATOR_POSITION, 0);
+    lcd.print(turnaround ? "/" : "*");
+    lcd.setCursor(LCD_SEPARATOR_POSITION, 1);
+    lcd.print(turnaround ? "*" : "/");
 
     turnaround = !turnaround;
   }
@@ -275,25 +282,12 @@ static void lcd_pump_indicator(SolarBoilerController::PUMP_STATE state)
 
 static void lcd_print_temperature(const enum LCD_POSTION pos, const int temperature)
 {
- // return ;
-     ESP_LOGI("print:", " %d %d ", __LINE__, (int)pos);
-       vTaskDelay(pdMS_TO_TICKS(500));
   set_lcd_cursor(pos);
-     ESP_LOGI("print:", "%d", __LINE__);
-
   lcd.print("   "); /* clear old result*/
-     ESP_LOGI("print:", "%d", __LINE__);
-
   set_lcd_cursor(pos);
-     ESP_LOGI("print:", "%d", __LINE__);
-
   if(temperature < 1000) {
-     ESP_LOGI("print:", "%d", __LINE__);
     lcd.print(temperature);
-
   } else {
-     ESP_LOGI("print:", "%d", __LINE__);
-
     lcd.print("ET2");
   }
   vTaskDelay(pdMS_TO_TICKS(500));
@@ -371,7 +365,7 @@ static float getMax31865Temperature(Max31865 &max, const enum LCD_POSTION pos)
       }
 
       vTaskDelay(pdMS_TO_TICKS(100));
-     // lcd_print_temperature(pos, static_cast<int>(temperature));
+      lcd_print_temperature(pos, static_cast<int>(temperature));
       vTaskDelay(pdMS_TO_TICKS(500));
     } else  {
       lcd_print_error(pos, APP_ERROR::TEMP_SENSOR_FAIL);
