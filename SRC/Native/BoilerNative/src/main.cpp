@@ -281,9 +281,9 @@ static void lcd_pump_indicator(SolarBoilerController::PUMP_STATE state)
     lcd.print("|");
   } else {
     lcd.setCursor(LCD_SEPARATOR_POSITION, 0);
-    lcd.print(turnaround ? "/" : "*");
+    lcd.print(turnaround ? "+" : "*");
     lcd.setCursor(LCD_SEPARATOR_POSITION, 1);
-    lcd.print(turnaround ? "*" : "/");
+    lcd.print(turnaround ? "+" : "*");
 
     turnaround = !turnaround;
   }
