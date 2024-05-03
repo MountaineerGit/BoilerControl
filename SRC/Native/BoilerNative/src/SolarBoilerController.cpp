@@ -39,6 +39,7 @@ SolarBoilerController::PUMP_STATE SolarBoilerController::getPumpAction()
             }
         } else {
             /* Negative deltas are unexpected. We simply turn pump off. */
+            state_change_counter = 0;
             _previous_pump_state = PUMP_OFF;
             return TURN_PUMP_OFF;
         }

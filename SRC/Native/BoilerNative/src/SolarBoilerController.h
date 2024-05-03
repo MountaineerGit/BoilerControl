@@ -4,15 +4,29 @@
 
 #include <float.h>
 
-class TemperatureRange;
+class TemperatureRange
+{
+    public:
+        float min;
+        float max;
+public:
+    TemperatureRange() {};
+    TemperatureRange(float min, float max) : min(min), max(max) 
+    {  };
+    virtual ~TemperatureRange() {};
+};
 
 class SolarBoilerController
 {
 
 public:
 
-    /* Temperature difference where power-efficience is the highest. */
-    static const float OPTIMAL_DELTA_TEMPERATURE = 7.00f;
+    /* Temperature difference with the best efficiency. 
+    * When the temperature difference between solar and boiler is
+    * greater than seven degrees, than turn the pump on (heat water).
+    * Value retrieved from some local plumping guy :).
+    */
+    static constexpr float OPTIMAL_DELTA_TEMPERATURE = 7.00f;
 
     enum PUMP_STATE {
         EMERGENCY_TURN_OFF = -1,
@@ -72,18 +86,6 @@ public:
 
     PUMP_STATE getPumpAction(); 
 
-};
-
-class TemperatureRange
-{
-    public:
-        float min;
-        float max;
-public:
-    TemperatureRange() {};
-    TemperatureRange(float min, float max) : min(min), max(max) 
-    {  };
-    virtual ~TemperatureRange() {};
 };
 
 #endif /* SOLAR_BOILER_CONTROLLER_H */

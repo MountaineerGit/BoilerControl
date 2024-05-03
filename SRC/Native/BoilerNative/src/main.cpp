@@ -5,6 +5,7 @@
 
 #include "driver/gpio.h"
  
+#include "SolarBoilerController.h"
 #include "Max31865.h"
 #include "HD44780.h"
 #include "version.h"
@@ -30,7 +31,8 @@ enum class LCD_POSTION : uint8_t
   POS1_SOLAR = 0,
   POS2_BOILER,
   POS3_INFLOW,
-  POS4_REFLOW
+  POS4_REFLOW,
+  POS5_PUMP_ON_INDICATOR
 };
 
 // MAX31865 consts
@@ -62,14 +64,28 @@ enum class APP_ERROR : uint8_t
   TEMP_SENSOR_FAIL = 0,
 };
 
+SolarBoilerController pump_controller = SolarBoilerController(60);
+
 //-----------------------------------------------------------------------------
 # define PARASITE_POWER_ARG false
 // Globals
+
+//-----------------------------------------------------------------------------
+// LCD display
+//-----------------------------------------------------------------------------
 LCD_I2C lcd;
+
+static constexpr int LCD_SEPARATOR_POSITION = 8;
+//////////////////////////////////////
+//----------------------------------//
+// S o l : 9 0     |   Z u : 8 5    //
+// B o i : 4 5     |   A b : 6 0    //
+//----------------------------------//
+// 0 1 2 3 4 5 6 7 8 9 A B C D E F  //
+//////////////////////////////////////
 
 //static Placeholder<OneWireNg_CurrentPlatform> ow;
 OneWireNg_CurrentPlatform ow = OneWireNg_CurrentPlatform(3 /*GPIO3,A1,D1*/, false);
-
 DSTherm drv(ow);
 
 // LED GPIO2/A0/D0
@@ -85,18 +101,30 @@ const gpio_config_t LED_GPIO_CFG =
   .intr_type = GPIO_INTR_DISABLE
 };
 
+// PUMP/MotorControl via Triac GPIO7/A7/D7
+#define TRIAC_PUMP_GPIO_NUM GPIO_NUM_7
+const gpio_config_t PUMP_CTRL_GPIO_CFG =
+{
+  .pin_bit_mask = 1ULL << TRIAC_PUMP_GPIO_NUM,
+  .mode = GPIO_MODE_OUTPUT,
+  .pull_up_en = GPIO_PULLUP_DISABLE,
+  .pull_down_en = GPIO_PULLDOWN_ENABLE,
+  .intr_type = GPIO_INTR_DISABLE
+};
+
 //-----------------------------------------------------------------------------
 static void init_lcd();
-static void print_temperature(const enum LCD_POSTION pos, const int temperature);
-static void print_error(const enum LCD_POSTION pos, const enum APP_ERROR err);
+static void lcd_print_temperature(const enum LCD_POSTION pos, const int temperature);
+static void lcd_print_error(const enum LCD_POSTION pos, const enum APP_ERROR err);
+static void lcd_pump_indicator(SolarBoilerController::PUMP_STATE state);
 static void printScratchpad(const DSTherm::Scratchpad& scrpd);
 
+static SolarBoilerController::PUMP_STATE pumpAction(SolarBoilerController::PUMP_STATE state);
+static float getMax31865Temperature(Max31865 &max, const enum LCD_POSTION pos);
 
 extern "C"
 void app_main()
 {
-  uint16_t rtd;
-  Max31865Error fault = Max31865Error::NoError;
   float temperatureSolar = 0.0f;
   float temperatureBoiler = 0.0f;
 
@@ -121,6 +149,9 @@ void app_main()
   gpio_config(&LED_GPIO_CFG);
   gpio_set_level(LED_GPIO_NUM, LED_OFF);
 
+  gpio_config(&PUMP_CTRL_GPIO_CFG);
+  gpio_set_level(TRIAC_PUMP_GPIO_NUM, SolarBoilerController::PUMP_STATE::PUMP_OFF);
+
   ESP_ERROR_CHECK(tempSensorBoiler.begin(tempConfig));
   vTaskDelay(pdMS_TO_TICKS(100));
   ESP_ERROR_CHECK(tempSensorSolar.begin(tempConfig));
@@ -132,37 +163,27 @@ void app_main()
   ESP_LOGD("main", "Main loop");
   while (true)
   {
-    if(tempSensorSolar.getRTD(&rtd, &fault) == ESP_OK)
-    {
-      ESP_LOGI("rtdS", "%.2d ", rtd);
-      temperatureSolar = Max31865::RTDtoTemperature(rtd, rtdConfigSolar);
 
-      ESP_LOGI("TemperatureS", "%.2f C", temperatureSolar);
-      print_temperature(LCD_POSTION::POS1_SOLAR, static_cast<int>(temperatureSolar));
-      vTaskDelay(pdMS_TO_TICKS(500));
-    } else  {
-      print_error(LCD_POSTION::POS1_SOLAR, APP_ERROR::TEMP_SENSOR_FAIL);
+    temperatureSolar = getMax31865Temperature(tempSensorSolar, LCD_POSTION::POS1_SOLAR);
+    vTaskDelay(pdMS_TO_TICKS(500));
+
+    temperatureBoiler = getMax31865Temperature(tempSensorBoiler, LCD_POSTION::POS2_BOILER);
+    vTaskDelay(pdMS_TO_TICKS(500));
+
+    ESP_LOGI("print:", "%d", __LINE__);
+    /* feed readings to controller and check for pump action */
+    pump_controller.setSolarTemperature(temperatureSolar);
+    pump_controller.setBoilerTemperature(temperatureBoiler);
+    SolarBoilerController::PUMP_STATE pump_state = pumpAction(pump_controller.getPumpAction());
+
+    ESP_LOGI("print:", "%d", __LINE__);
+   // lcd_pump_indicator(pump_state);
+
+    if(pump_state == SolarBoilerController::PUMP_STATE::PUMP_ON) {
     }
 
 
-    if(tempSensorBoiler.getRTD(&rtd, &fault) == ESP_OK)
-    {
-      ESP_LOGI("rtdB", "%.2d ", rtd);
-      temperatureBoiler = Max31865::RTDtoTemperature(rtd, rtdConfigBoiler);
-      ESP_LOGI("TemperatureB", "%.2f C", temperatureBoiler);
-      print_temperature(LCD_POSTION::POS2_BOILER, static_cast<int>(temperatureBoiler));
-      vTaskDelay(pdMS_TO_TICKS(500));
-
-    } else  {
-      print_error(LCD_POSTION::POS1_SOLAR, APP_ERROR::TEMP_SENSOR_FAIL);
-    }
-
-    if(temperatureSolar - temperatureBoiler > 7.0f) {
-      gpio_set_level(LED_GPIO_NUM, LED_ON);
-    } else {
-      gpio_set_level(LED_GPIO_NUM, LED_OFF);
-    }
-
+    /* Influx, Reflux measurement */
     /* convert temperature on all sensors connected... */
     drv.convertTempAll(DSTherm::MAX_CONV_TIME, PARASITE_POWER_ARG);
 
@@ -177,6 +198,7 @@ void app_main()
               printf("  Read scratchpad error.\n");
     }
 
+    vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
 
@@ -195,6 +217,8 @@ static void init_lcd()
   lcd.setCursor(8,0); lcd.print("| Zu:");
   lcd.setCursor(0,1); lcd.print("Boi:");
   lcd.setCursor(8,1); lcd.print("| Ab:");
+  vTaskDelay(pdMS_TO_TICKS(2000));
+        lcd.setCursor(8,1); lcd.print("ggg:");
 
 #ifdef LCD_DEBUG_PRINT
   print_temperature(LCD_POSTION::POS1_SOLAR,120);
@@ -218,27 +242,58 @@ static void set_lcd_cursor(const enum LCD_POSTION pos)
     case LCD_POSTION::POS2_BOILER: row=1; col=4;  break;
     case LCD_POSTION::POS3_INFLOW: row=0; col=13; break;
     case LCD_POSTION::POS4_REFLOW: row=1; col=13; break;
-    default:break;
+    default: break;
   }
 
   lcd.setCursor(col, row);
 }
 
-static void print_error(const enum LCD_POSTION pos, const enum APP_ERROR err)
+static void lcd_print_error(const enum LCD_POSTION pos, const enum APP_ERROR err)
 {
   set_lcd_cursor(pos);
   lcd.print("ET1");
 }
 
-static void print_temperature(const enum LCD_POSTION pos, const int temperature)
+static void lcd_pump_indicator(SolarBoilerController::PUMP_STATE state)
+{
+  static bool turnaround = false;
+
+  if(state != SolarBoilerController::PUMP_STATE::PUMP_ON) {
+    lcd.setCursor(0, LCD_SEPARATOR_POSITION);
+    lcd.print("|");
+    lcd.setCursor(1, LCD_SEPARATOR_POSITION);
+    lcd.print("|");
+  } else {
+    lcd.setCursor(0, LCD_SEPARATOR_POSITION);
+    lcd.print(turnaround ? "/" : "\\");
+    lcd.setCursor(1, LCD_SEPARATOR_POSITION);
+    lcd.print(turnaround ? "/" : "\\");
+
+    turnaround = !turnaround;
+  }
+}
+
+static void lcd_print_temperature(const enum LCD_POSTION pos, const int temperature)
 {
  // return ;
+     ESP_LOGI("print:", " %d %d ", __LINE__, (int)pos);
+       vTaskDelay(pdMS_TO_TICKS(500));
   set_lcd_cursor(pos);
+     ESP_LOGI("print:", "%d", __LINE__);
+
   lcd.print("   "); /* clear old result*/
+     ESP_LOGI("print:", "%d", __LINE__);
+
   set_lcd_cursor(pos);
+     ESP_LOGI("print:", "%d", __LINE__);
+
   if(temperature < 1000) {
+     ESP_LOGI("print:", "%d", __LINE__);
     lcd.print(temperature);
+
   } else {
+     ESP_LOGI("print:", "%d", __LINE__);
+
     lcd.print("ET2");
   }
   vTaskDelay(pdMS_TO_TICKS(500));
@@ -270,10 +325,57 @@ static void printScratchpad(const DSTherm::Scratchpad& scrpd)
 
     if(zu)
     {
-      print_temperature(LCD_POSTION::POS3_INFLOW, (int)temp / 16);
+      lcd_print_temperature(LCD_POSTION::POS3_INFLOW, (int)temp / 16);
       zu = false;
     } else {
-      print_temperature(LCD_POSTION::POS4_REFLOW, (int)temp / 16);
+      lcd_print_temperature(LCD_POSTION::POS4_REFLOW, (int)temp / 16);
       zu = true;
     }
+}
+
+static SolarBoilerController::PUMP_STATE pumpAction(SolarBoilerController::PUMP_STATE state)
+{
+  if(state == SolarBoilerController::PUMP_STATE::TURN_PUMP_ON) {
+     gpio_set_level(LED_GPIO_NUM, LED_ON);
+     /* TODO: gpio for triac */
+     // gpio_set_level(TRIAC_PUMP_GPIO_NUM, SolarBoilerController::PUMP_STATE::PUMP_ON);
+  } else {
+     gpio_set_level(LED_GPIO_NUM, LED_OFF);
+     gpio_set_level(TRIAC_PUMP_GPIO_NUM, SolarBoilerController::PUMP_STATE::PUMP_OFF);
+
+     // TODO: indicate emergency off
+  }
+
+  return state;
+}
+
+static float getMax31865Temperature(Max31865 &max, const enum LCD_POSTION pos)
+{
+  uint16_t rtd;
+  float temperature = 0.0f;
+  Max31865Error fault = Max31865Error::NoError;
+
+    if(max.getRTD(&rtd, &fault) == ESP_OK)
+    {
+      temperature = Max31865::RTDtoTemperature(rtd, 
+        pos==LCD_POSTION::POS1_SOLAR ? 
+          rtdConfigSolar : 
+          rtdConfigBoiler);
+
+      if(pos==LCD_POSTION::POS1_SOLAR) {
+            ESP_LOGI("rtdS", "%.2d ", rtd);
+            ESP_LOGI("TemperatureS", "%.2f C", temperature);
+      } else {
+            ESP_LOGI("rtdB", "%.2d ", rtd);
+            ESP_LOGI("TemperatureB", "%.2f C", temperature);
+      }
+
+      vTaskDelay(pdMS_TO_TICKS(100));
+     // lcd_print_temperature(pos, static_cast<int>(temperature));
+      vTaskDelay(pdMS_TO_TICKS(500));
+    } else  {
+      lcd_print_error(pos, APP_ERROR::TEMP_SENSOR_FAIL);
+    }
+
+    return temperature;
 }
