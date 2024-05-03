@@ -64,7 +64,11 @@ enum class APP_ERROR : uint8_t
   TEMP_SENSOR_FAIL = 0,
 };
 
-SolarBoilerController pump_controller = SolarBoilerController(60);
+// how fast to re-measure temperatures
+// must be greater 0
+static constexpr int UPDATE_TIME_SEC = 1;
+
+SolarBoilerController pump_controller = SolarBoilerController(UPDATE_TIME_SEC);
 
 //-----------------------------------------------------------------------------
 # define PARASITE_POWER_ARG false
@@ -128,6 +132,7 @@ void app_main()
   float temperatureSolar = 0.0f;
   float temperatureBoiler = 0.0f;
   SolarBoilerController::PUMP_STATE pump_state = SolarBoilerController::PUMP_STATE::PUMP_OFF;
+  int update_time_sec = UPDATE_TIME_SEC;
 
   Max31865 tempSensorBoiler = Max31865(
     9 /*miso*/,
@@ -168,12 +173,12 @@ void app_main()
     lcd_pump_indicator(pump_state);  // we call this multiple times for nice display-animation
 
     temperatureSolar = getMax31865Temperature(tempSensorSolar, LCD_POSTION::POS1_SOLAR);
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(pdMS_TO_TICKS(100));
 
     lcd_pump_indicator(pump_state);  // we call this multiple times for nice display-animation
   
     temperatureBoiler = getMax31865Temperature(tempSensorBoiler, LCD_POSTION::POS2_BOILER);
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(pdMS_TO_TICKS(100));
 
     /* feed readings to controller and check for pump action */
     pump_controller.setSolarTemperature(temperatureSolar);
@@ -206,7 +211,11 @@ void app_main()
               printf("  Read scratchpad error.\n");
     }
 
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    while(update_time_sec--) {
+      lcd_pump_indicator(pump_state);  // we call this multiple times for nice display-animation
+      vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+    update_time_sec = UPDATE_TIME_SEC;
   }
 }
 
@@ -366,7 +375,7 @@ static float getMax31865Temperature(Max31865 &max, const enum LCD_POSTION pos)
 
       vTaskDelay(pdMS_TO_TICKS(100));
       lcd_print_temperature(pos, static_cast<int>(temperature));
-      vTaskDelay(pdMS_TO_TICKS(500));
+      vTaskDelay(pdMS_TO_TICKS(100));
     } else  {
       lcd_print_error(pos, APP_ERROR::TEMP_SENSOR_FAIL);
     }

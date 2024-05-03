@@ -3,7 +3,7 @@
 SolarBoilerController::SolarBoilerController(int temperature_update_time) :
     _temperature_update_time_sec(temperature_update_time),
     STATE_CHANGE_COUNTER_THRESHOLD(5 /* TOOD: calc based on _temperature_update_time_sec */),
-    EMERGENCY_TURN_OFF_THRESHOLD(10 /* TOOD: calc based on _temperature_update_time_sec */)
+    EMERGENCY_TURN_OFF_THRESHOLD(5 /* TOOD: calc based on _temperature_update_time_sec */)
 {
 
 }
