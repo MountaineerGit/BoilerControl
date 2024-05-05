@@ -38,7 +38,7 @@ enum class LCD_POSTION : uint8_t
 };
 
 // MAX31865 consts
-const max31865_config_t tempConfig =
+const max31865_config_t tempConfigMax38165 =
 {
   .vbias = true,
   .autoConversion = false,
@@ -60,6 +60,18 @@ const max31865_rtd_config_t rtdConfigSolar =
   .nominal = 1630.0f,
   .sensor_type = SensorType::KTY81_210
 };
+
+Max31865 tempSensorBoiler = Max31865(
+  9 /*miso*/,
+  10 /*mosi*/,
+  8 /*sck*/,
+  5 /*cs2 GPIO5, D3*/);
+
+Max31865 tempSensorSolar = Max31865(
+  9 /*miso*/,
+  10 /*mosi*/,
+  8 /*sck*/,
+  4 /*cs1 GPIO4, D2*/);
 
 enum class APP_ERROR : uint8_t
 {
@@ -142,18 +154,6 @@ void app_main()
   SolarBoilerController::PUMP_STATE pump_state = SolarBoilerController::PUMP_STATE::PUMP_OFF;
   int update_time_sec = UPDATE_TIME_SEC;
 
-  Max31865 tempSensorBoiler = Max31865(
-    9 /*miso*/,
-    10 /*mosi*/,
-    8 /*sck*/,
-    5 /*cs2 GPIO5, D3*/);
-
-  Max31865 tempSensorSolar = Max31865(
-    9 /*miso*/,
-    10 /*mosi*/,
-    8 /*sck*/,
-    4 /*cs1 GPIO4, D2*/);
-
   //    vTaskDelay(pdMS_TO_TICKS(500));
 
   watchdog_init(WATCHDOG_TIMEOUT_MS);
@@ -169,9 +169,9 @@ void app_main()
   //gpio_config(&PUMP_CTRL_GPIO_CFG);
   //gpio_set_level(TRIAC_PUMP_GPIO_NUM, SolarBoilerController::PUMP_STATE::PUMP_OFF);
 
-  ESP_ERROR_CHECK(tempSensorBoiler.begin(tempConfig));
+  ESP_ERROR_CHECK(tempSensorBoiler.begin(tempConfigMax38165));
   vTaskDelay(pdMS_TO_TICKS(100));
-  ESP_ERROR_CHECK(tempSensorSolar.begin(tempConfig));
+  ESP_ERROR_CHECK(tempSensorSolar.begin(tempConfigMax38165));
   vTaskDelay(pdMS_TO_TICKS(100));
 
   //ESP_ERROR_CHECK(tempSensorBoiler.setRTDThresholds(0x2000, 0x2500));
