@@ -1,3 +1,9 @@
 [submodule "SRC/homeassistant/my_components/HD44780-ESP-IDF-CPP"]
 	path = SRC/homeassistant/my_components/HD44780-ESP-IDF-CPP
 	url = https://github.com/LucasCanete/HD44780-ESP-IDF-CPP.git
+[submodule "SRC/homeassistant/my_components/ESP32-MAX31865"]
+	path = SRC/homeassistant/my_components/ESP32-MAX31865
+	url = https://github.com/MountaineerGit/ESP32-MAX31865.git
+[submodule "SRC/homeassistant/my_components/OneWireNg"]
+	path = SRC/homeassistant/my_components/OneWireNg
+	url = https://github.com/pstolarz/OneWireNg.git
