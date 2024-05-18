@@ -2,18 +2,36 @@
 esphome:
   name: boilercontrol2
   friendly_name: Boilercontrol2
-  build_path: /homeassistant/esphome/tmp
+  build_path: /home/minty/Documents/BoilerControl/SRC/build
+  includes:
+   - my_components/HD44780/HD44780.cpp
+   - my_components/HD44780/HD44780.h
+   - my_components/ESP32-MAX31865/include/Max31865.h
+   - my_components/ESP32-MAX31865/src/Max31865.cpp
+   - my_components/ESP32-MAX31865/src/numerics.cpp
+   - my_components/OneWireNg/src/platform/OneWireNg_ArduinoIdfESP32.h
+   - my_components/OneWireNg/src/OneWireNg_CurrentPlatform.h
   platformio_options:
     board_build.flash_mode: dio
-#  includes:
-#    - custom_components/boilercontrol/boilercontrol.h
-#    - custom_components/boilercontrol/boilercontrol.cpp
+    upload_protocol: esptool
+    debug_tool: esp-builtin
+    platform_packages: 
+      - toolchain-riscv32-esp @ 8.4.0+2021r2-patch5
+      - framework-espidf @ 3.40405.230623
+    build_flags:
+     - -DCONFIG_OVERDRIVE_ENABLED
+     - -DCONFIG_CRC16_ENABLED
+     - -DCONFIG_ITERATION_RETRIES=1
+     - -DOWNG_NO_NATIVE_CONFIG
+#     - -DCONFIG_PWR_CTRL_ENABLED
 
 esp32:
-  board: esp32-c3-devkitm-1
+  #board: esp32-c3-devkitm-1
+  board: seeed_xiao_esp32c3
   variant: esp32c3
   framework:
     type: esp-idf
+
 
  
 #external_components:
@@ -30,6 +48,10 @@ logger:
 
 
 external_components:
+#  - source:
+#      type: git
+#      url: https://github.com/LucasCanete/HD44780-ESP-IDF-CPP.git
+#    components: [components]
   - source:
       type: local
       path: my_components
@@ -69,5 +91,5 @@ wifi:
     ssid: "Gpiotest Fallback Hotspot"
     password: "rMVepOhRBZCY"
 
-captive_portal:
+
     

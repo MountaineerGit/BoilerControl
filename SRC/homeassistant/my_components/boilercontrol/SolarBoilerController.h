@@ -89,3 +89,4 @@ public:
 };
 
 #endif /* SOLAR_BOILER_CONTROLLER_H */
+
