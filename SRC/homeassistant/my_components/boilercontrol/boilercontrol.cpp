@@ -1,7 +1,7 @@
 #include "boilercontrol.h"
 #include "esphome/core/log.h"
 #include "esphome/core/helpers.h"
-#include "SolarBoilerController.h"
+
 
 #include "version.h"
 
@@ -91,6 +91,33 @@ static constexpr int UPDATE_TIME_SEC = 1;
 
 SolarBoilerController pump_controller = SolarBoilerController(UPDATE_TIME_SEC);
 
+//-----------------------------------------------------------------------------
+# define PARASITE_POWER_ARG false
+// Globals
+
+//-----------------------------------------------------------------------------
+// LCD display
+//-----------------------------------------------------------------------------
+LCD_I2C lcd;
+
+static constexpr int LCD_SEPARATOR_POSITION = 8;
+//////////////////////////////////////
+//----------------------------------//
+// S o l : 9 0     |   Z u : 8 5    //
+// B o i : 4 5     |   A b : 6 0    //
+//----------------------------------//
+// 0 1 2 3 4 5 6 7 8 9 A B C D E F  //
+//////////////////////////////////////
+
+#ifdef ONEWIRE
+// OneWireNg_CurrentPlatform ow = OneWireNg_CurrentPlatform(3 /*GPIO3,A1,D1*/, false);
+ //DSTherm drv(ow);
+#endif
+
+static const char *const TAG = "boilercontrol";
+
+static OneWireNg_CurrentPlatform *ow = nullptr;
+
 // LED GPIO2/A0/D0
 #define LED_GPIO_NUM GPIO_NUM_2
 #define LED_ON 1
@@ -115,37 +142,11 @@ const gpio_config_t PUMP_CTRL_GPIO_CFG =
   .intr_type = GPIO_INTR_DISABLE
 };
 
-//-----------------------------------------------------------------------------
-# define PARASITE_POWER_ARG false
-// Globals
-
-//-----------------------------------------------------------------------------
-// LCD display
-//-----------------------------------------------------------------------------
-LCD_I2C lcd;
-
-static constexpr int LCD_SEPARATOR_POSITION = 8;
-//////////////////////////////////////
-//----------------------------------//
-// S o l : 9 0     |   Z u : 8 5    //
-// B o i : 4 5     |   A b : 6 0    //
-//----------------------------------//
-// 0 1 2 3 4 5 6 7 8 9 A B C D E F  //
-//////////////////////////////////////
-
-#ifdef ONEWIRE
-// OneWireNg_CurrentPlatform ow = OneWireNg_CurrentPlatform(3 /*GPIO3,A1,D1*/, false);
- //DSTherm drv(ow);
-#endif
-
 namespace esphome {
 //namespace components {
 namespace boilercontrol {
 
-static const char *const TAG = "boilercontrol";
-
-static OneWireNg_CurrentPlatform *ow = nullptr;
-
+//-----------------------------------------------------------------------------
 void BoilerControlComponent::setup() 
 {
   ESP_LOGCONFIG(TAG, "Setting up boilercontrol Sensor '%s'...", this->get_name().c_str());
@@ -155,26 +156,18 @@ void BoilerControlComponent::setup()
 
   // -- LCD --
   ESP_LOGD("setup", "Init LCD");
-  lcd.init(0x27, 6 /*sda, GPIO6*/, 7 /*scl, GPIO7*/, 2, 16);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print(APP_NAME);
-  lcd.setCursor(0,1);
-  lcd.print(APP_VERSION);
-  vTaskDelay(pdMS_TO_TICKS(2000));
-  lcd.clear();
-
-  lcd.setCursor(0,0); lcd.print("Sol:");
-  lcd.setCursor(8,0); lcd.print("| Zu:");
-  lcd.setCursor(0,1); lcd.print("Boi:");
-  lcd.setCursor(8,1); lcd.print("| Ab:");
+  lcd_init();
 
   // -- GPIO::LED --
   ESP_LOGD("setup", "GPIO");
   gpio_config(&LED_GPIO_CFG);
   gpio_set_level(LED_GPIO_NUM, LED_OFF);
 
-  // -- GPIO::LED --
+  // TODO: is this the trouble-maker ???
+  //gpio_config(&PUMP_CTRL_GPIO_CFG);
+  //gpio_set_level(TRIAC_PUMP_GPIO_NUM, SolarBoilerController::PUMP_STATE::PUMP_OFF);
+
+  // -- Max38165 --
   ESP_LOGD("setup", "Max38165");
   ESP_ERROR_CHECK(tempSensorBoiler.begin(tempConfigMax38165));
   vTaskDelay(pdMS_TO_TICKS(100));
@@ -188,6 +181,84 @@ void BoilerControlComponent::setup()
 
   //this->pin_->attach_interrupt(BoilerControlComponentStore::gpio_intr, &this->store_, gpio::INTERRUPT_ANY_EDGE);
 }
+
+void BoilerControlComponent::lcd_init()
+{
+  lcd.init(0x27, 6 /*sda, GPIO6*/, 7 /*scl, GPIO7*/, 2, 16);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print(APP_NAME);
+  lcd.setCursor(0,1);
+  lcd.print(APP_VERSION);
+  vTaskDelay(pdMS_TO_TICKS(2000));
+  lcd.clear();
+
+  lcd.setCursor(0,0); lcd.print("Sol:");
+  lcd.setCursor(8,0); lcd.print("| Zu:");
+  lcd.setCursor(0,1); lcd.print("Boi:");
+  lcd.setCursor(8,1); lcd.print("| Ab:");
+}
+
+void BoilerControlComponent::lcd_print_temperature(const enum LCD_POSTION pos, const int temperature)
+{
+  set_lcd_cursor(pos);
+  lcd.print("   "); /* clear old result*/
+  set_lcd_cursor(pos);
+  if(temperature < 1000) {
+    lcd.print(temperature);
+  } else {
+    lcd.print("ET2");
+  }
+  vTaskDelay(pdMS_TO_TICKS(500));
+}
+void BoilerControlComponent::lcd_print_temp_sensor_error(const enum LCD_POSTION pos, const enum APP_ERROR err)
+{
+  set_lcd_cursor(pos);
+  lcd.print("ET1");
+}
+void BoilerControlComponent::lcd_print_app_error(const enum APP_ERROR err)
+{
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    if(err == APP_ERROR::WATCHDOG_TRIGGERED) {
+      lcd.print("Error: ETW");
+    }
+}
+void BoilerControlComponent::lcd_pump_indicator(SolarBoilerController::PUMP_STATE state)
+{
+  static bool lcd_motor_animation = false;
+
+  if(state != SolarBoilerController::PUMP_STATE::PUMP_ON) {
+    lcd.setCursor(LCD_SEPARATOR_POSITION, 0);
+    lcd.print("|");
+    lcd.setCursor(LCD_SEPARATOR_POSITION, 1);
+    lcd.print("|");
+  } else {
+    lcd.setCursor(LCD_SEPARATOR_POSITION, 0);
+    lcd.print(lcd_motor_animation ? "+" : "*");
+    lcd.setCursor(LCD_SEPARATOR_POSITION, 1);
+    lcd.print(lcd_motor_animation ? "+" : "*");
+
+    lcd_motor_animation = !lcd_motor_animation;
+  }
+}
+
+SolarBoilerController::PUMP_STATE BoilerControlComponent::pumpAction(SolarBoilerController::PUMP_STATE state)
+{
+  if(state == SolarBoilerController::PUMP_STATE::TURN_PUMP_ON) {
+     gpio_set_level(LED_GPIO_NUM, LED_ON);
+     /* TODO: gpio for triac */
+     // gpio_set_level(TRIAC_PUMP_GPIO_NUM, SolarBoilerController::PUMP_STATE::PUMP_ON);
+  } else {
+     gpio_set_level(LED_GPIO_NUM, LED_OFF);
+     gpio_set_level(TRIAC_PUMP_GPIO_NUM, SolarBoilerController::PUMP_STATE::PUMP_OFF);
+
+     // TODO: indicate emergency off
+  }
+
+  return state;
+}
+
 void BoilerControlComponent::dump_config() {
   LOG_SENSOR("", "BoilerControlComponent Sensor", this);
   LOG_PIN("  Pin: ", this->pin_);
@@ -223,6 +294,37 @@ float BoilerControlComponent::get_setup_priority() const
 void IRAM_ATTR BoilerControlComponentStore::gpio_intr(BoilerControlComponentStore *arg) 
 {
   return;
+}
+
+float BoilerControlComponent::getMax31865Temperature(Max31865 &max, const enum LCD_POSTION pos)
+{
+  uint16_t rtd;
+  float temperature = 0.0f;
+  Max31865Error fault = Max31865Error::NoError;
+
+    if(max.getRTD(&rtd, &fault) == ESP_OK)
+    {
+      temperature = Max31865::RTDtoTemperature(rtd, 
+        pos==LCD_POSTION::POS1_SOLAR ? 
+          rtdConfigSolar : 
+          rtdConfigBoiler);
+
+      if(pos==LCD_POSTION::POS1_SOLAR) {
+            ESP_LOGI("rtdS", "%.2d ", rtd);
+            ESP_LOGI("TemperatureS", "%.2f C", temperature);
+      } else {
+            ESP_LOGI("rtdB", "%.2d ", rtd);
+            ESP_LOGI("TemperatureB", "%.2f C", temperature);
+      }
+
+      vTaskDelay(pdMS_TO_TICKS(100));
+      lcd_print_temperature(pos, static_cast<int>(temperature));
+      vTaskDelay(pdMS_TO_TICKS(100));
+    } else  {
+      lcd_print_temp_sensor_error(pos, APP_ERROR::TEMP_SENSOR_FAIL);
+    }
+
+    return temperature;
 }
 
 }  // namespace duty_cycle
