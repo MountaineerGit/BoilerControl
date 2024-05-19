@@ -93,6 +93,8 @@ class BoilerControlComponent : public sensor::Sensor, public PollingComponent {
 private:
   float temperatureSolar = 0.0f;
   float temperatureBoiler = 0.0f;
+  int temperatureInflow = 0;
+  int temperatureReflow = 0;
   SolarBoilerController::PUMP_STATE pump_state;
   // how fast to re-measure temperatures
   // must be greater 0
