@@ -76,7 +76,8 @@ Max31865 tempSensorSolar = Max31865(
 
 enum class APP_ERROR : uint8_t
 {
-  TEMP_SENSOR_FAIL = 0,
+  APP_OK = 0,
+  TEMP_SENSOR_FAIL,
   WATCHDOG_TRIGGERED
 };
 #endif
@@ -130,8 +131,8 @@ const gpio_config_t LED_GPIO_CFG =
   .intr_type = GPIO_INTR_DISABLE
 };
 
-// PUMP/MotorControl via Triac GPIO7/A7/D7
-#define TRIAC_PUMP_GPIO_NUM GPIO_NUM_7
+// PUMP/MotorControl via Triac GPIO20/D7
+#define TRIAC_PUMP_GPIO_NUM GPIO_NUM_20
 const gpio_config_t PUMP_CTRL_GPIO_CFG =
 {
   .pin_bit_mask = 1ULL << TRIAC_PUMP_GPIO_NUM,
@@ -143,7 +144,7 @@ const gpio_config_t PUMP_CTRL_GPIO_CFG =
 
 //-----------------------------------------------------------------------------
 // constructor
-BoilerControlComponent::BoilerControlComponent() : PollingComponent(30000 /* update interval milliseconds */ ) 
+BoilerControlComponent::BoilerControlComponent() : PollingComponent(30'000 /* TODO: 15 * 60 * 1000 */ /* update interval milliseconds */ ) 
 {
   /* nop */
 }
@@ -169,9 +170,8 @@ void BoilerControlComponent::setup()
   gpio_config(&LED_GPIO_CFG);
   gpio_set_level(LED_GPIO_NUM, LED_OFF);
 
-  // TODO: is this the trouble-maker ???
-  //gpio_config(&PUMP_CTRL_GPIO_CFG);
-  //gpio_set_level(TRIAC_PUMP_GPIO_NUM, SolarBoilerController::PUMP_STATE::PUMP_OFF);
+  gpio_config(&PUMP_CTRL_GPIO_CFG);
+  gpio_set_level(TRIAC_PUMP_GPIO_NUM, SolarBoilerController::PUMP_STATE::PUMP_OFF);
 
   // -- Max38165 --
   ESP_LOGD("setup", "Max38165");
@@ -276,8 +276,7 @@ SolarBoilerController::PUMP_STATE BoilerControlComponent::pumpAction(SolarBoiler
 {
   if(state == SolarBoilerController::PUMP_STATE::TURN_PUMP_ON) {
      gpio_set_level(LED_GPIO_NUM, LED_ON);
-     /* TODO: gpio for triac */
-     // gpio_set_level(TRIAC_PUMP_GPIO_NUM, SolarBoilerController::PUMP_STATE::PUMP_ON);
+     gpio_set_level(TRIAC_PUMP_GPIO_NUM, SolarBoilerController::PUMP_STATE::PUMP_ON);
   } else {
      gpio_set_level(LED_GPIO_NUM, LED_OFF);
      gpio_set_level(TRIAC_PUMP_GPIO_NUM, SolarBoilerController::PUMP_STATE::PUMP_OFF);
@@ -299,26 +298,34 @@ void BoilerControlComponent::loop()
 {
   lcd_pump_indicator(pump_state);  // we call this multiple times for nice display-animation
 
-  temperatureSolar = getMax31865Temperature(tempSensorSolar, LCD_POSTION::POS1_SOLAR);
+  if(getMax31865Temperature(tempSensorSolar, temperatureSolar, LCD_POSTION::POS1_SOLAR) == APP_ERROR::APP_OK)
+  {
+    pump_controller.setSolarTemperature(temperatureSolar);
+  } else {
+    pump_controller.setSolarTemperature(FLT_MAX);
+  }
   vTaskDelay(pdMS_TO_TICKS(200));
 
   lcd_pump_indicator(pump_state);  // we call this multiple times for nice display-animation
 
-  temperatureBoiler = getMax31865Temperature(tempSensorBoiler, LCD_POSTION::POS2_BOILER);
+  if(getMax31865Temperature(tempSensorBoiler, temperatureBoiler, LCD_POSTION::POS2_BOILER) == APP_ERROR::APP_OK)
+  {
+    pump_controller.setBoilerTemperature(temperatureBoiler);
+  } else {
+    pump_controller.setBoilerTemperature(FLT_MAX);
+  }
   vTaskDelay(pdMS_TO_TICKS(200));
-
+  
   /* feed readings to controller and check for pump action */
-  pump_controller.setSolarTemperature(temperatureSolar);
-  pump_controller.setBoilerTemperature(temperatureBoiler);
   pump_state = pumpAction(pump_controller.getPumpAction());
-
-  lcd_pump_indicator(pump_state);  // we call this multiple times for nice display-animation
 
   if(pump_state == SolarBoilerController::PUMP_STATE::PUMP_ON) {
      ESP_LOGI(TAG,"** pump is ON");
   } else {
     ESP_LOGI(TAG, "** pump is OFF");
   }
+
+  lcd_pump_indicator(pump_state);  // we call this multiple times for nice display-animation
 
 # ifdef ONEWIRE_LOOP
   /* Influx, Reflux measurement */
@@ -345,10 +352,10 @@ void BoilerControlComponent::update()
   //float temperature = 23.52f;
   //ESP_LOGD(TAG, "'%s' Temperature=%.1f%%", this->get_name().c_str(), temperature);
 
-  if (this->temperature_sensor_boiler_ != nullptr)
+  if (this->temperature_sensor_boiler_ != nullptr && tempSensorBoiler.getLastError() == Max31865Error::NoError)
     this->temperature_sensor_boiler_->publish_state(temperatureBoiler);
 
-  if (this->temperature_sensor_solar_ != nullptr)
+  if (this->temperature_sensor_solar_ != nullptr && tempSensorSolar.getLastError() == Max31865Error::NoError)
     this->temperature_sensor_solar_->publish_state(temperatureSolar);
 
   if (this->temperature_sensor_influx_ != nullptr)
@@ -372,10 +379,9 @@ void IRAM_ATTR BoilerControlComponentStore::gpio_intr(BoilerControlComponentStor
   return;
 }
 
-float BoilerControlComponent::getMax31865Temperature(Max31865 &max, const enum LCD_POSTION pos)
+APP_ERROR BoilerControlComponent::getMax31865Temperature(Max31865 &max, float &temperature, const enum LCD_POSTION pos)
 {
   uint16_t rtd;
-  float temperature = 0.0f;
   Max31865Error fault = Max31865Error::NoError;
 
     if(max.getRTD(&rtd, &fault) == ESP_OK)
@@ -398,9 +404,10 @@ float BoilerControlComponent::getMax31865Temperature(Max31865 &max, const enum L
       vTaskDelay(pdMS_TO_TICKS(100));
     } else  {
       lcd_print_temp_sensor_error(pos, APP_ERROR::TEMP_SENSOR_FAIL);
+      return APP_ERROR::TEMP_SENSOR_FAIL;
     }
 
-    return temperature;
+    return APP_ERROR ::APP_OK;
 }
 
 void BoilerControlComponent::oneWirePrintTemperature(const DSTherm::Scratchpad& scrpd)
@@ -445,3 +452,4 @@ void BoilerControlComponent::oneWirePrintTemperature(const DSTherm::Scratchpad& 
 
 }  // namespace duty_cycle
 }  // namespace esphome
+

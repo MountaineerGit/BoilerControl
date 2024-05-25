@@ -86,7 +86,7 @@ class BoilerControlComponent : public sensor::Sensor, public PollingComponent {
 
   SolarBoilerController::PUMP_STATE pumpAction(SolarBoilerController::PUMP_STATE state);
 
-  float getMax31865Temperature(Max31865 &max, const enum LCD_POSTION pos);
+  APP_ERROR getMax31865Temperature(Max31865 &max, float &temperature, const enum LCD_POSTION pos);
 
   void oneWirePrintTemperature(const DSTherm::Scratchpad& scrpd);
 
@@ -106,3 +106,4 @@ private:
 
 }  // namespace boilercontrol
 }  // namespace esphome
+

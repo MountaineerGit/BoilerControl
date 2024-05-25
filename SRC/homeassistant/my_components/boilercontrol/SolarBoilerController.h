@@ -16,6 +16,9 @@ public:
     virtual ~TemperatureRange() {};
 };
 
+/* Expected temperature range, for filtering invalid values */
+const TemperatureRange TEMPERATURE_FILTER = TemperatureRange(-40.0f, 180.0f);
+
 class SolarBoilerController
 {
 
@@ -43,9 +46,6 @@ private:
 
     enum PUMP_STATE _pump_state = PUMP_STATE::PUMP_OFF;
     enum PUMP_STATE _previous_pump_state = PUMP_STATE::PUMP_OFF;
-
-    /* Expected temperature range, for filtering invalid values */
-    const TemperatureRange TEMPERATURE_FILTER = TemperatureRange(-40.0f, 180.0f);
 
     /* How often ist the temperature expected to be updated */
     int _temperature_update_time_sec = 60;
